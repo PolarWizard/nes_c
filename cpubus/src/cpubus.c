@@ -1,3 +1,4 @@
+#include "../../cpu/inc/cpu.h"
 #include "../inc/cpubus.h"
 
 u8 cpubus_read(u16 addr) {
@@ -20,8 +21,7 @@ u8 cpubus_read(u16 addr) {
 		//SRAM
 	}
 	else { //addr < 0xFFFF
-		//Cartridge Space
-		return 0;
+		return ram[(addr & 0x3FFF)];
 	}
 }
 

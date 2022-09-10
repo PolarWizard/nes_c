@@ -2,6 +2,7 @@
 #define CPU_H
 
 #include <stdint.h>
+#include <stdbool.h>
 
 #define u8  uint8_t
 #define u16 uint16_t
@@ -19,17 +20,26 @@ typedef struct {
 	u16 PC;
 	
 	//flags
-	u8 f_C;
-	u8 f_Z;
-	u8 f_I;
-	u8 f_D;
-	u8 f_B;
-	u8 f_V;
-	u8 f_N;
+	u8 f_N; //7
+	u8 f_V; //6
+	u8 ZZZ; //5
+	u8 f_B; //4
+	u8 f_D; //3
+	u8 f_I; //2
+	u8 f_Z; //1
+	u8 f_C; //0
+
+	//last addr computed by fetch function
+	u16 last_addr;
+
+	//clock cycles done so far
+	u32 cycles;
 
 	//place holder for sys memory
 	u8 ram[0xFFFF];
 } cpu_t;
+
+u8 ram[0xFFFF];
 
 enum addrMode {
 	NONE, //NO ADDRESSING MODE
@@ -66,7 +76,7 @@ typedef enum insnName {
 	TAX, TAY, TSX, TXA, TXS, TYA
 }insn;
 
-static u8 addrModeMap[256] = {
+static const u8 addrModeMap[256] = {
 	IMP,  INDX, NONE, NONE, NONE, ZER,  ZER,  NONE, IMP,  IMM,  ACC,  NONE, NONE, ABS,  ABS,  NONE,
 	REL,  INDY, NONE, NONE, NONE, ZERX, ZERX, NONE, IMP,  ABSY, NONE, NONE, NONE, ABSX, ABSX, NONE,
 	ABS,  INDX, NONE, NONE, ZER,  ZER,  ZER,  NONE, IMP,  IMM,  ACC,  NONE, ABS,  ABS,  ABS,  NONE,
@@ -85,7 +95,7 @@ static u8 addrModeMap[256] = {
 	REL,  INDY, NONE, NONE, NONE, ZERX, ZERX, NONE, IMP,  ABSY, NONE, NONE, NONE, ABSX, ABSX, NONE
 };
 
-static u8 instrMap[256] = {
+static const u8 instrMap[256] = {
 	BRK, ORA, NaN, NaN, NaN, ORA, ASL, NaN, PHP, ORA, ASL, NaN, NaN, ORA, ASL, NaN,
 	BPL, ORA, NaN, NaN, NaN, ORA, ASL, NaN, CLC, ORA, NaN, NaN, NaN, ORA, ASL, NaN,
 	JSR, AND, NaN, NaN, BIT, AND, ROL, NaN, PLP, AND, ROL, NaN, BIT, AND, ROL, NaN,
@@ -104,9 +114,38 @@ static u8 instrMap[256] = {
 	BEQ, SBC, NaN, NaN, NaN, SBC, INC, NaN, SED, SBC, NaN, NaN, NaN, SBC, INC, NaN
 };
 
+static const u8 clkCyclesMap[256] = {
+	7, 6, 0, 0, 0, 3, 5, 0, 3, 2, 2, 0, 0, 4, 6, 0,
+	2, 5, 0, 0, 0, 4, 6, 0, 2, 4, 0, 0, 0, 4, 7, 0,
+	6, 6, 0, 0, 3, 3, 5, 0, 4, 2, 2, 0, 4, 4, 6, 0,
+	2, 5, 0, 0, 0, 4, 6, 0, 2, 4, 0, 0, 0, 4, 7, 0,
+	6, 6, 0, 0, 0, 3, 5, 0, 3, 2, 2, 0, 3, 4, 6, 0,
+	2, 5, 0, 0, 0, 4, 6, 0, 2, 4, 0, 0, 0, 4, 7, 0,
+	6, 6, 0, 0, 0, 3, 5, 0, 4, 2, 2, 0, 5, 4, 6, 0,
+	2, 5, 0, 0, 0, 4, 6, 0, 2, 4, 0, 0, 0, 4, 7, 0,
+	0, 6, 0, 0, 3, 3, 3, 0, 2, 0, 2, 0, 4, 4, 4, 0,
+	2, 6, 0, 0, 4, 4, 4, 0, 2, 5, 2, 0, 0, 5, 0, 0,
+	2, 6, 2, 0, 3, 3, 3, 0, 2, 2, 2, 0, 4, 4, 4, 0,
+	2, 5, 0, 0, 4, 4, 4, 0, 2, 4, 2, 0, 4, 4, 4, 0,
+	2, 6, 0, 0, 3, 3, 5, 0, 2, 2, 2, 0, 4, 4, 6, 0,
+	2, 5, 0, 0, 0, 4, 6, 0, 2, 4, 0, 0, 0, 4, 7, 0,
+	2, 6, 0, 0, 3, 3, 5, 0, 2, 2, 2, 2, 4, 4, 6, 0,
+	2, 5, 0, 0, 0, 4, 6, 0, 2, 4, 0, 0, 0, 4, 7, 0,
+};
+
 void cpu_init(cpu_t* cpu);
 void cpu_run(cpu_t* cpu);
-void fetch(cpu_t* cpu);
+void cpu_nmi(cpu_t* cpu);
+
+u8 fetch(cpu_t* cpu);
+
+set_Nflag(cpu_t* cpu, bool state);
+set_Vflag(cpu_t* cpu, bool state);
+set_Bflag(cpu_t* cpu, bool state);
+set_Dflag(cpu_t* cpu, bool state);
+set_Iflag(cpu_t* cpu, bool state);
+set_Zflag(cpu_t* cpu, bool state);
+set_Cflag(cpu_t* cpu, bool state);
 
 void i_ADC(cpu_t* cpu); //add with carry
 void i_AND(cpu_t* cpu); //and (with accumulator)
